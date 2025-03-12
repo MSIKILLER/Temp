@@ -13,19 +13,31 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Get changed files
+      - name: Get changed files and content
         id: changes
         run: |
-          echo "changes<<EOF" >> $GITHUB_OUTPUT
-          git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Get list of changed files
+          FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          
+          # Initialize comment body
+          COMMENT="### Files Changed:\n\n"
+          
+          # For each file, get its changes
+          for file in $FILES; do
+            COMMENT+="#### $file\n\`\`\`diff\n"
+            COMMENT+="$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} -- $file)"
+            COMMENT+="\n\`\`\`\n\n"
+          done
+          
+          # Escape multiline string for GitHub Actions
+          COMMENT="${COMMENT//'%'/'%25'}"
+          COMMENT="${COMMENT//$'\n'/'%0A'}"
+          COMMENT="${COMMENT//$'\r'/'%0D'}"
+          
+          echo "comment=$COMMENT" >> $GITHUB_OUTPUT
 
       - name: Add PR Comment
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-          gh pr comment ${{ github.event.pull_request.number }} --body "### Changes Detected:
-          \`\`\`diff
-          $DIFF
-          \`\`\`"
+          gh pr comment ${{ github.event.pull_request.number }} --body "${{ steps.changes.outputs.comment }}"
