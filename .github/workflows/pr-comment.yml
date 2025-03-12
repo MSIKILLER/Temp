@@ -14,10 +14,14 @@ jobs:
       - name: Get changed files
         id: changes
         run: |
-          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status | base64)
-          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | base64)
-          echo "::set-output name=changes::$CHANGES"
-          echo "::set-output name=diff::$DIFF"
+          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status | tr '\n' ' ')
+          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | tr '\n' ' ')
+          echo "CHANGES_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "DIFF_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
@@ -31,10 +35,10 @@ jobs:
             New changes detected in PR #${{ github.event.pull_request.number }}
             
             Changes:
-            ${{ fromJSON(steps.changes.outputs.changes) }}
+            ${{ steps.changes.outputs.CHANGES_OUTPUT }}
             
             Detailed Diff:
-            ${{ fromJSON(steps.changes.outputs.diff) }}
+            ${{ steps.changes.outputs.DIFF_OUTPUT }}
           to: ${{ github.event.pull_request.user.email }}
           from: GitHub Actions
 
@@ -42,10 +46,9 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const changes = Buffer.from('${{ steps.changes.outputs.changes }}', 'base64').toString();
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Changes Detected:\n\`\`\`\n${changes}\n\`\`\``
+              body: `### Changes Detected:\n\`\`\`diff\n${process.env.CHANGES_OUTPUT}\n\`\`\``
             })
