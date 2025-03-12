@@ -1,0 +1,50 @@
+name: PR Comment and Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed files
+        run: |
+          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status)
+          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          echo "changes=$CHANGES" >> $GITHUB_ENV
+          echo "diff=$DIFF" >> $GITHUB_ENV
+
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: Your PR Changes - ${{ github.event.pull_request.title }}
+          body: |
+            New changes detected in your PR #${{ github.event.pull_request.number }}
+            
+            Changes:
+            ${{ env.changes }}
+            
+            Detailed Diff:
+            ${{ env.diff }}
+          to: ${{ github.event.pull_request.user.email }}
+          from: GitHub Actions
+
+      - name: Add PR Comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const comment = process.env.changes.replace(/\n/g, '\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            })
