@@ -16,23 +16,16 @@ jobs:
       - name: Get changed files
         id: changes
         run: |
-          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status)
-          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-          echo "CHANGES_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "DIFF_OUTPUT<<EOF" >> $GITHUB_OUTPUT
-          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Add PR Comment
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const changesOutput = `{{ steps.changes.outputs.CHANGES_OUTPUT }}`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `### Changes Detected:\n\`\`\`diff\n${changesOutput}\n\`\`\``
-            })
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          gh pr comment ${{ github.event.pull_request.number }} --body "### Changes Detected:
+          \`\`\`diff
+          $DIFF
+          \`\`\`"
