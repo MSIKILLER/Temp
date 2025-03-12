@@ -1,26 +1,32 @@
 name: PR Comment
 on:
   pull_request:
+    # Trigger workflow when PR is opened or updated
     types: [opened, synchronize]
 
 jobs:
   add-comment:
     runs-on: ubuntu-latest
     permissions:
+      # Ensure workflow has permission to comment on PRs
       pull-requests: write
     steps:
+      # Step 1: Checkout repository code
       - uses: actions/checkout@v3
         with:
+          # Fetch complete history to compare changes
           fetch-depth: 0
       
+      # Step 2: Generate and post PR comment with change details
       - name: Create PR Comment
         env:
+          # Use GitHub token for authentication
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Get the changes
+          # Get the diff between base and head commits
           CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
           
-          # Create comment with proper formatting
+          # Format comment with file statistics and detailed diff
           COMMENT="### 📝 Changes in this PR:
 
           $(git diff --stat ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
@@ -31,5 +37,5 @@ jobs:
           $CHANGES
           \`\`\`"
           
-          # Post comment to PR
+          # Use GitHub CLI to post the formatted comment on the PR
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
