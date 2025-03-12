@@ -23,6 +23,11 @@ jobs:
           echo "$DIFF" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Get PR Author Email
+        id: email
+        run: |
+          echo "author_email=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} --jq .user.email)" >> $GITHUB_OUTPUT
+
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
         with:
@@ -39,9 +44,9 @@ jobs:
             
             Detailed Diff:
             ${{ steps.changes.outputs.DIFF_OUTPUT }}
-          to: ${{ github.event.pull_request.user.email }}
+          to: ${{ steps.email.outputs.author_email || secrets.DEFAULT_EMAIL }}
           from: GitHub Actions
-
+          
       - name: Add PR Comment
         uses: actions/github-script@v6
         with:
