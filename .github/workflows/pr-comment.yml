@@ -12,11 +12,12 @@ jobs:
           fetch-depth: 0
       
       - name: Get changed files
+        id: changes
         run: |
-          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status)
-          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-          echo "changes=$CHANGES" >> $GITHUB_ENV
-          echo "diff=$DIFF" >> $GITHUB_ENV
+          CHANGES=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} --name-status | base64)
+          DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | base64)
+          echo "::set-output name=changes::$CHANGES"
+          echo "::set-output name=diff::$DIFF"
 
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
@@ -27,13 +28,13 @@ jobs:
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: Your PR Changes - ${{ github.event.pull_request.title }}
           body: |
-            New changes detected in your PR #${{ github.event.pull_request.number }}
+            New changes detected in PR #${{ github.event.pull_request.number }}
             
             Changes:
-            ${{ env.changes }}
+            ${{ fromJSON(steps.changes.outputs.changes) }}
             
             Detailed Diff:
-            ${{ env.diff }}
+            ${{ fromJSON(steps.changes.outputs.diff) }}
           to: ${{ github.event.pull_request.user.email }}
           from: GitHub Actions
 
@@ -41,10 +42,10 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const comment = process.env.changes.replace(/\n/g, '\n');
+            const changes = Buffer.from('${{ steps.changes.outputs.changes }}', 'base64').toString();
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              body: `### Changes Detected:\n\`\`\`\n${changes}\n\`\`\``
             })
