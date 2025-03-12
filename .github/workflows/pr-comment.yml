@@ -1,10 +1,10 @@
-name: PR Comment and Review
+name: PR Comment
 on:
   pull_request:
     types: [opened, synchronize]
 
 jobs:
-  review-and-notify:
+  add-comment:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -25,25 +25,6 @@ jobs:
           echo "$DIFF" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Send Email Notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: Your PR Changes - ${{ github.event.pull_request.title }}
-          body: |
-            New changes detected in PR #${{ github.event.pull_request.number }}
-            
-            Changes:
-            ${{ steps.changes.outputs.CHANGES_OUTPUT }}
-            
-            Detailed Diff:
-            ${{ steps.changes.outputs.DIFF_OUTPUT }}
-          to: ${{ secrets.DEFAULT_EMAIL }}
-          from: GitHub Actions
-          
       - name: Add PR Comment
         uses: actions/github-script@v6
         with:
